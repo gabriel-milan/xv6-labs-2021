@@ -76,14 +76,33 @@ sys_sleep(void)
 }
 
 
-#ifdef LAB_PGTBL
 int
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
+  uint64 start;       // first user page to check
+  int len;            // number of pages
+  uint64 useraddr;    // where to store the bitmap
+  uint64 bitmask = 0; // bitmap of pages (first page is LSB)
+  uint64 complement = ~PTE_A; // complement of PTE_A
+
+  argaddr(0, &start);
+  argint(1, &len);
+  argaddr(2, &useraddr);
+
+  struct proc *p = myproc();
+  for (int i = 0; i < len; i++) {
+    pte_t *pte = walk(p->pagetable, start + i * PGSIZE, 0);
+    if (*pte & PTE_A) {
+      bitmask |= (1 << i);
+      *pte &= complement;
+    }
+  }
+
+  if (copyout(p->pagetable, useraddr, (char *)&bitmask, sizeof(bitmask)) < 0)
+    return -1;
+
   return 0;
 }
-#endif
 
 uint64
 sys_kill(void)

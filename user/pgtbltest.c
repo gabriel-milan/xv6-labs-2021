@@ -41,6 +41,7 @@ ugetpid_test()
         exit(1);
       continue;
     }
+    printf("ugetpid_test: getpid()=%d, ugetpid()=%d\n", getpid(), ugetpid());
     if (getpid() != ugetpid())
       err("missmatched PID");
     exit(0);
