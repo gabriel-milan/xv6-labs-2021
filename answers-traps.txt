@@ -1,0 +1,24 @@
+Which registers contain arguments to functions? For example, which register holds 13 in main's call to printf?
+R: os registradores a0, a1, a2 ... a7 possuem os argumentos. no caso, vê se que com "li a2,13", o que segura o "13" é o a2.
+
+Where is the call to function f in the assembly code for main? Where is the call to g? (Hint: the compiler may inline functions.)
+R: como é possível ver em "li a1,12", o compilador calculou diretamente o valor 12 a partir de "f(8)+1" e o carregou em a1.
+
+At what address is the function printf located?
+R: como a linha "jalr 1536(ra) # 630 <printf>" indica, o endereço da printf é 0000000000000630
+
+What value is in the register ra just after the jalr to printf in main?
+R: como o "exit(0);" estaria em 0x38, ra estará com o valor 0x38 logo após o jalr
+
+Run the following code.
+	unsigned int i = 0x00646c72;
+	printf("H%x Wo%s", 57616, &i);
+What is the output?
+R: a saída é HE110 World
+
+The output depends on that fact that the RISC-V is little-endian. If the RISC-V were instead big-endian what would you set i to in order to yield the same output? Would you need to change 57616 to a different value?
+R: se fosse big-endian, teria que trocar i para "dlr". no entanto, como 57616 será 0xe110 independentemente da ordenação, não será necessário trocá-lo no %x
+
+In the following code, what is going to be printed after 'y='? (note: the answer is not a specific value.) Why does this happen?
+	printf("x=%d y=%d", 3);
+R: o valor de y é indefinido. como não definimos um valor para o segundo placeholder, ele irá exibir o valor anteriormente presente em a2.
