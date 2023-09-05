@@ -1,0 +1,5 @@
+> Why are there missing keys with 2 threads, but not with 1 thread? Identify a sequence of events with 2 threads that can lead to a key being missing. Submit your sequence with a short explanation in answers-thread.txt
+
+Como essa tabela é encadeada, caso duas threads chamem simultaneamente o insert, existe a
+possibilidade de sobrescrever o `next` com outra entrada que foi inserida posteriormente. Isso
+faz com que a lista encadeada seja quebrada, e a busca não encontre o elemento que foi inserido.
