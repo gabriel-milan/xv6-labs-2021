@@ -283,6 +283,53 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
+struct inode*
+follow_symlink(struct inode *ip)
+{
+  uint passedInums [MAXSYMLINKDEPTH];
+  char target[MAXPATH];
+
+  for (int i = 0; i < MAXSYMLINKDEPTH; i++) {
+    // store inum in array
+    passedInums[i] = ip->inum;
+
+    // read symlink
+    if (readi(ip, 0, (uint64)target, 0, MAXPATH) <= 0) {
+      // failed to read symlink
+      iunlockput(ip);
+      return 0;
+    }
+    iunlockput(ip);
+
+    // get the inode of the target
+    if ((ip = namei(target)) == 0) {
+      // failed to get inode of target
+      // path might be invalid
+      return 0;
+    }
+    for (int j = 0; j < i; j++) {
+      // check if we have already passed this inode
+      if (passedInums[j] == ip->inum) {
+        // we have already passed this inode
+        // we have a cycle
+        return 0;
+      }
+    }
+
+    // check if the target is a symlink
+    ilock(ip);
+    if (ip->type != T_SYMLINK) {
+      // target is not a symlink
+      // we are done
+      return ip;
+    }
+  }
+
+  // we have reached the max symlink depth
+  iunlockput(ip);
+  return 0;
+}
+
 uint64
 sys_open(void)
 {
@@ -320,6 +367,15 @@ sys_open(void)
     iunlockput(ip);
     end_op();
     return -1;
+  }
+
+  if (ip->type == T_SYMLINK && (omode & O_NOFOLLOW) == 0) {
+    // follow symlink
+    if ((ip = follow_symlink(ip)) == 0) {
+      // failed to follow symlink
+      end_op();
+      return -1;
+    }
   }
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
@@ -482,5 +538,26 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_symlink(void)
+{
+  char path[MAXPATH], target[MAXPATH];
+  struct inode *ip;
+
+  begin_op();
+  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0 || (ip = create(path, T_SYMLINK, 0, 0)) == 0){
+    end_op();
+    return -1;
+  }
+  if(writei(ip, 0, (uint64)target, 0, strlen(target)) != strlen(target)){
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+  iunlockput(ip);
+  end_op();
   return 0;
 }
