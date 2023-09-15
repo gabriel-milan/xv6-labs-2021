@@ -5,6 +5,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fs.h"
+#include "sleeplock.h"
+#include "file.h"
+#include "fcntl.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -65,6 +69,57 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if(r_scause() == 13 || r_scause() == 15){
+    // pagefault caused by lazy alloc of mmap
+    uint64 va = r_stval();
+    if(va >= MAXVA) {
+      p->killed = 1;
+      goto bad;
+    } else if(PGROUNDDOWN(p->trapframe->sp) <= va && va < p->trapframe->sp) {
+      p->killed = 1;
+      goto bad;
+    }
+
+    // Find the target VMA.
+    struct vma *target = 0;
+    if ((target = vmafind(p->vma, va)) == 0) {
+      // If the target VMA is not found, kill the process.
+      p->killed = 1;
+      goto bad;
+    }
+
+    // If the target VMA is found, add mappings.
+    uint64 mem;
+    pte_t *pte = walk(p->pagetable, va, 1);
+
+    if ((mem = (uint64)kalloc()) == 0) {
+      // If the memory allocation fails, kill the process.
+      p->killed = 1;
+      goto bad;
+    }
+
+    memset((void *)mem, 0, PGSIZE);
+    *pte = PA2PTE(mem) | PTE_U | PTE_V;
+
+    if (target->protections & PROT_READ)
+      *pte |= PTE_R;
+    if (target->protections & PROT_WRITE)
+      *pte |= PTE_W;
+    if (target->protections & PROT_EXEC)
+      *pte |= PTE_X;
+
+    // Load file content into memory.
+    va = PGROUNDDOWN(va);
+    ilock(target->f->ip);
+
+    if (readi(target->f->ip, 0, mem, va - target->off, PGSIZE) < 0)
+    {
+      iunlock(target->f->ip);
+      p->killed = 1;
+      goto bad;
+    }
+
+    iunlock(target->f->ip);
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
@@ -72,7 +127,7 @@ usertrap(void)
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
   }
-
+bad:
   if(p->killed)
     exit(-1);
 

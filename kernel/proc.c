@@ -140,6 +140,7 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+  p->vma_address = STARTVMA;
 
   return p;
 }
@@ -153,6 +154,17 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  for (struct vma *v = p->vma; v < p->vma + NVMA; v++)
+  {
+    if (!v->len)
+      continue; // Skip empty VMAs.
+
+    // Write back any modified data to the file.
+    writeback(v, v->off, v->len);
+
+    // Unmap the VMA.
+    uvmunmap(p->pagetable, v->off, v->len / PGSIZE, 1);
+  }
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -304,6 +316,20 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+
+  struct vma *dst = np->vma;
+  for (struct vma *v = p->vma; v < p->vma + NVMA; v++)
+  {
+    if (v->len == 0)
+      continue; // Skip empty VMAs.
+
+    // Copy the VMA data to the destination.
+    memmove(dst, p->vma, sizeof(struct vma));
+
+    // Duplicate the file reference.
+    filedup(p->vma->f);
+    dst++;
+  }
 
   release(&np->lock);
 
