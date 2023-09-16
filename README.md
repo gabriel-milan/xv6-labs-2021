@@ -12,7 +12,7 @@ Esse repositório contém soluções para os laboratórios do curso [6.S081](htt
 - Lab Page Tables
     - Enunciado: [link](https://pdos.csail.mit.edu/6.S081/2021/labs/pgtbl.html)
     - Solução: [link](https://github.com/gabriel-milan/xv6-labs-2021/tree/pgtbl)
-    - Relatório: [link](https://github.com/gabriel-milan/xv6-labs-2021/blob/pgbtl/REPORT.md)
+    - Relatório: [link](https://github.com/gabriel-milan/xv6-labs-2021/blob/pgtbl/REPORT.md)
 
 - Lab Traps
     - Enunciado: [link](https://pdos.csail.mit.edu/6.S081/2021/labs/traps.html)
