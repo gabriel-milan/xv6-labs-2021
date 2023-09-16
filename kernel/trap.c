@@ -65,7 +65,23 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  } else if(r_scause() == 13 || r_scause() == 15){
+    // page fault
+    uint64 va = r_stval();
+
+    // Check if the accessed address is valid and within acceptable ranges.
+    if (va >= MAXVA || va >= p->sz || (va < p->trapframe->sp && va >= PGROUNDDOWN(p->trapframe->sp) - PGSIZE))
+    {
+      // Mark the process as killed due to an invalid memory access.
+      p->killed = 1;
+    }
+    // Attempt to handle the page fault
+    else if (handle_page_fault(p->pagetable, va) != 0)
+    {
+      // Mark the process as killed if page fault handling fails.
+      p->killed = 1;
+    }
+  } else if ((which_dev = devintr()) != 0){
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
